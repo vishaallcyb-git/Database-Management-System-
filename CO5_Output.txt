@@ -1,0 +1,89 @@
+CREATE DATABASE RiverGate;
+USE RiverGate;
+
+CREATE TABLE CanalPool (
+    PoolID INT PRIMARY KEY,
+    PoolName VARCHAR(30),
+    Balance INT
+);
+
+CREATE TABLE Farm (
+    FarmID INT PRIMARY KEY,
+    FarmName VARCHAR(30),
+    DailyLimit INT
+);
+
+CREATE TABLE Allocation (
+    RequestID INT PRIMARY KEY,
+    FarmID INT,
+    SourcePool INT,
+    DestinationPool INT,
+    Amount INT,
+    FOREIGN KEY (FarmID) REFERENCES Farm(FarmID)
+);
+INSERT INTO CanalPool VALUES
+(1, 'North Canal', 1000),
+(2, 'South Canal', 800),
+(3, 'East Canal', 600);
+
+INSERT INTO Farm VALUES
+(101, 'Farm A', 100),
+(102, 'Farm B', 150);
+START TRANSACTION;
+
+UPDATE CanalPool
+SET Balance = Balance - 50
+WHERE PoolID = 1;
+
+ROLLBACK;
+START TRANSACTION;
+
+UPDATE CanalPool
+SET Balance = Balance - 20
+WHERE PoolID = 1;
+
+SAVEPOINT S1;
+
+UPDATE CanalPool
+SET Balance = Balance + 20
+WHERE PoolID = 2;
+
+ROLLBACK TO S1;
+
+COMMIT;
+START TRANSACTION;
+
+UPDATE CanalPool
+SET Balance = Balance - 20
+WHERE PoolID = 1;
+
+SAVEPOINT S1;
+
+UPDATE CanalPool
+SET Balance = Balance + 20
+WHERE PoolID = 2;
+
+ROLLBACK TO S1;
+
+COMMIT;
+START TRANSACTION;
+
+SELECT *
+FROM CanalPool
+WHERE PoolID = 1
+FOR UPDATE;
+
+COMMIT;
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+CREATE INDEX idx_farm
+ON Allocation(FarmID);
+
+EXPLAIN
+SELECT * FROM Allocation
+WHERE FarmID = 101;

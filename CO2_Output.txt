@@ -1,0 +1,124 @@
+CREATE DATABASE SwiftSpan;
+USE SwiftSpan;
+
+CREATE TABLE Sender (
+    SenderID INT PRIMARY KEY,
+    SenderName VARCHAR(50),
+    RouteGroup VARCHAR(30)
+);
+
+CREATE TABLE Service (
+    ServiceID INT PRIMARY KEY,
+    ServiceCode VARCHAR(20) UNIQUE,
+    ServiceName VARCHAR(50),
+    VolumeWeight DECIMAL(5,2)
+);
+
+CREATE TABLE Coordinator (
+    CoordinatorID INT PRIMARY KEY,
+    CoordinatorName VARCHAR(50),
+    Hub VARCHAR(30)
+);
+
+CREATE TABLE Assignment (
+    SenderID INT,
+    ServiceID INT,
+    CoordinatorID INT,
+    PRIMARY KEY (SenderID, ServiceID),
+    FOREIGN KEY (SenderID) REFERENCES Sender(SenderID),
+    FOREIGN KEY (ServiceID) REFERENCES Service(ServiceID),
+    FOREIGN KEY (CoordinatorID) REFERENCES Coordinator(CoordinatorID)
+);
+
+CREATE TABLE Observation (
+    SenderID INT,
+    ServiceID INT,
+    DispatchWave INT,
+    Completion INT,
+    PRIMARY KEY (SenderID, ServiceID, DispatchWave),
+    FOREIGN KEY (SenderID, ServiceID)
+        REFERENCES Assignment(SenderID, ServiceID)
+);
+INSERT INTO Sender VALUES
+(1, 'Arun', 'North'),
+(2, 'Bala', 'South'),
+(3, 'Charan', 'East');
+
+INSERT INTO Service VALUES
+(1, 'EXP', 'Express', 2.0),
+(2, 'STD', 'Standard', 1.5),
+(3, 'ECO', 'Economy', 1.0);
+
+INSERT INTO Coordinator VALUES
+(1, 'Ravi', 'Chennai'),
+(2, 'Kumar', 'Trichy');
+
+INSERT INTO Assignment VALUES
+(1,1,1), (1,2,1),
+(2,1,2), (2,3,2),
+(3,2,1), (3,3,2);
+
+INSERT INTO Observation VALUES
+(1,1,1,80), (1,1,2,65),
+(1,2,1,90), (1,2,2,75),
+(2,1,1,55), (2,1,2,40),
+(2,3,1,70), (2,3,2,60),
+(3,2,1,85), (3,2,2,50),
+(3,3,1,45), (3,3,2,30);
+-- Q1: Display sender observations
+SELECT * FROM Observation
+WHERE SenderID = 1 AND DispatchWave = 1;
+
+-- Q2: Find observations with completion >= 39
+SELECT * FROM Observation
+WHERE Completion >= 39;
+
+-- Q3: Find observations below 39
+SELECT * FROM Observation
+WHERE Completion < 39;
+
+-- Q4: Average completion by coordinator
+SELECT C.CoordinatorName, AVG(O.Completion) AS AverageCompletion
+FROM Coordinator C
+JOIN Assignment A ON C.CoordinatorID = A.CoordinatorID
+JOIN Observation O
+ON A.SenderID = O.SenderID AND A.ServiceID = O.ServiceID
+GROUP BY C.CoordinatorID, C.CoordinatorName;
+
+-- Q5: Senders with low completion in at least 2 waves
+SELECT SenderID
+FROM Observation
+WHERE Completion < 39
+GROUP BY SenderID
+HAVING COUNT(DISTINCT DispatchWave) >= 2;
+CREATE VIEW SenderTrackingView AS
+SELECT S.SenderID, S.SenderName,
+       O.ServiceID, O.DispatchWave, O.Completion
+FROM Sender S
+JOIN Observation O ON S.SenderID = O.SenderID;
+
+CREATE VIEW CoordinatorWorkView AS
+SELECT C.CoordinatorName, AVG(O.Completion) AS AverageCompletion
+FROM Coordinator C
+JOIN Assignment A ON C.CoordinatorID = A.CoordinatorID
+JOIN Observation O
+ON A.SenderID = O.SenderID AND A.ServiceID = O.ServiceID
+GROUP BY C.CoordinatorName;
+
+CREATE INDEX idx_sender ON Observation(SenderID);
+CREATE INDEX idx_completion ON Observation(Completion);
+CREATE INDEX idx_wave ON Observation(DispatchWave);
+
+GRANT SELECT ON SwiftSpan.* TO 'student'@'localhost';
+
+REVOKE SELECT ON SwiftSpan.* FROM 'student'@'localhost';
+
+SELECT COUNT(*) FROM Observation;
+
+EXPLAIN ANALYZE
+SELECT * FROM Observation
+WHERE SenderID = 1;
+
+SELECT TABLE_NAME, DATA_LENGTH
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'SwiftSpan';

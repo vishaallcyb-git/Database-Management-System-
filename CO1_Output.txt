@@ -1,0 +1,386 @@
+CREATE DATABASE IF NOT EXISTS meridian_museum;
+USE meridian_museum;
+
+-- 1. PARTY
+CREATE TABLE Party (
+    PartyID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    PartyType ENUM('PERSON', 'ORGANIZATION') NOT NULL
+);
+
+-- 2. PERSON
+CREATE TABLE Person (
+    PartyID BIGINT PRIMARY KEY,
+    GivenName VARCHAR(80) NOT NULL,
+    MiddleName VARCHAR(80),
+    FamilyName VARCHAR(80) NOT NULL,
+    Email VARCHAR(254),
+    FOREIGN KEY (PartyID)
+        REFERENCES Party(PartyID)
+);
+
+-- 3. ORGANIZATION
+CREATE TABLE Organization (
+    PartyID BIGINT PRIMARY KEY,
+    LegalName VARCHAR(180) NOT NULL,
+    RegistrationNo VARCHAR(80) UNIQUE,
+    FOREIGN KEY (PartyID)
+        REFERENCES Party(PartyID)
+);
+
+-- 4. EMPLOYEE
+CREATE TABLE Employee (
+    PartyID BIGINT PRIMARY KEY,
+    EmployeeNo VARCHAR(30) UNIQUE NOT NULL,
+    Role ENUM('CURATOR', 'REGISTRAR', 'OTHER') NOT NULL,
+    HireDate DATE NOT NULL,
+    FOREIGN KEY (PartyID)
+        REFERENCES Person(PartyID)
+);
+
+-- 5. LENDER ROLE
+CREATE TABLE LenderRole (
+    PartyID BIGINT PRIMARY KEY,
+    ActiveFlag BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (PartyID)
+        REFERENCES Party(PartyID)
+);
+
+-- 6. PARTY PHONE
+CREATE TABLE PartyPhone (
+    PartyID BIGINT NOT NULL,
+    PhoneNo VARCHAR(30) NOT NULL,
+    Label VARCHAR(20),
+    PRIMARY KEY (PartyID, PhoneNo),
+    FOREIGN KEY (PartyID)
+        REFERENCES Party(PartyID)
+);
+
+-- 7. COLLECTION UNIT
+CREATE TABLE CollectionUnit (
+    CollectionUnitID INT AUTO_INCREMENT PRIMARY KEY,
+    UnitName VARCHAR(100) UNIQUE NOT NULL
+);
+
+-- 8. ARTIFACT
+CREATE TABLE Artifact (
+    ArtifactID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    AccessionNo VARCHAR(40) UNIQUE NOT NULL,
+    CollectionUnitID INT NOT NULL,
+    Title VARCHAR(200) NOT NULL,
+    CollectionType VARCHAR(60) NOT NULL,
+    CurrentValue DECIMAL(12,2),
+    FOREIGN KEY (CollectionUnitID)
+        REFERENCES CollectionUnit(CollectionUnitID)
+);
+
+-- 9. LOAN
+CREATE TABLE Loan (
+    LoanID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    LenderPartyID BIGINT NOT NULL,
+    StartDate DATE NOT NULL,
+    DueDate DATE NOT NULL,
+    ReturnDate DATE,
+    Status ENUM(
+        'PLANNED',
+        'ACTIVE',
+        'CLOSED',
+        'CANCELLED'
+    ) NOT NULL,
+
+    FOREIGN KEY (LenderPartyID)
+        REFERENCES LenderRole(PartyID),
+
+    CHECK (DueDate >= StartDate),
+    CHECK (
+        ReturnDate IS NULL
+        OR ReturnDate >= StartDate
+    )
+);
+
+-- 10. LOAN OBJECT
+CREATE TABLE LoanObject (
+    LoanObjectID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    LoanID BIGINT NOT NULL,
+    ArtifactID BIGINT NOT NULL,
+    IntakeDate DATE NOT NULL,
+    ReturnDate DATE,
+    LineValue DECIMAL(12,2),
+    Notes VARCHAR(500),
+
+    UNIQUE (LoanID, ArtifactID),
+
+    FOREIGN KEY (LoanID)
+        REFERENCES Loan(LoanID),
+
+    FOREIGN KEY (ArtifactID)
+        REFERENCES Artifact(ArtifactID),
+
+    CHECK (
+        ReturnDate IS NULL
+        OR ReturnDate >= IntakeDate
+    )
+);
+
+-- 11. CONDITION REPORT
+CREATE TABLE ConditionReport (
+    ReportID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    LoanObjectID BIGINT NOT NULL,
+    ReportDateTime DATETIME NOT NULL,
+
+    ReportType ENUM(
+        'INTAKE',
+        'DURING_LOAN',
+        'RETURN'
+    ) NOT NULL,
+
+    ConditionGrade VARCHAR(30),
+    Observations TEXT NOT NULL,
+    EvidenceURI VARCHAR(500),
+
+    FOREIGN KEY (LoanObjectID)
+        REFERENCES LoanObject(LoanObjectID)
+);
+-- 12. EXHIBITION
+CREATE TABLE Exhibition (
+    ExhibitionID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ExhibitionName VARCHAR(180) NOT NULL,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    CHECK (EndDate >= StartDate)
+);
+
+-- 13. DISPLAY SLOT
+CREATE TABLE DisplaySlot (
+    ExhibitionID BIGINT NOT NULL,
+    SlotNo INT NOT NULL,
+    Zone VARCHAR(60),
+    Capacity INT DEFAULT 1,
+
+    PRIMARY KEY (ExhibitionID, SlotNo),
+
+    FOREIGN KEY (ExhibitionID)
+        REFERENCES Exhibition(ExhibitionID),
+
+    CHECK (SlotNo > 0),
+    CHECK (Capacity > 0)
+);
+
+-- 14. PLACEMENT
+CREATE TABLE Placement (
+    PlacementID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    LoanObjectID BIGINT NOT NULL,
+    ExhibitionID BIGINT NOT NULL,
+    SlotNo INT NOT NULL,
+    FromDate DATE NOT NULL,
+    ToDate DATE,
+
+    FOREIGN KEY (LoanObjectID)
+        REFERENCES LoanObject(LoanObjectID),
+
+    FOREIGN KEY (ExhibitionID, SlotNo)
+        REFERENCES DisplaySlot(ExhibitionID, SlotNo),
+
+    CHECK (
+        ToDate IS NULL OR ToDate >= FromDate
+    )
+);
+
+-- 15. ARTIFACT OWNER
+CREATE TABLE ArtifactOwner (
+    ArtifactID BIGINT NOT NULL,
+    PartyID BIGINT NOT NULL,
+    ValidFrom DATE NOT NULL,
+    ValidTo DATE,
+    SharePercent DECIMAL(5,2) NOT NULL,
+
+    PRIMARY KEY (ArtifactID, PartyID, ValidFrom),
+
+    FOREIGN KEY (ArtifactID)
+        REFERENCES Artifact(ArtifactID),
+
+    FOREIGN KEY (PartyID)
+        REFERENCES Party(PartyID),
+
+    CHECK (SharePercent > 0 AND SharePercent <= 100),
+
+    CHECK (
+        ValidTo IS NULL OR ValidTo >= ValidFrom
+    )
+);
+USE meridian_museum;
+
+-- Parties
+INSERT INTO Party (PartyType)
+VALUES
+('PERSON'),
+('PERSON'),
+('ORGANIZATION'),
+('PERSON');
+
+-- Persons
+INSERT INTO Person
+(PartyID, GivenName, FamilyName, Email)
+VALUES
+(1, 'Arun', 'Kumar', 'arun@gmail.com'),
+(2, 'Priya', 'Sharma', 'priya@gmail.com'),
+(4, 'Ravi', 'Raj', 'ravi@gmail.com');
+
+-- Organization
+INSERT INTO Organization
+(PartyID, LegalName, RegistrationNo)
+VALUES
+(3, 'Heritage Foundation', 'HF001');
+
+-- Lenders
+INSERT INTO LenderRole (PartyID)
+VALUES (1), (2), (3);
+
+-- Collection units
+INSERT INTO CollectionUnit (UnitName)
+VALUES
+('Sculptures'),
+('Paintings'),
+('Coins'),
+('Manuscripts'),
+('Textiles'),
+('Pottery'),
+('Jewellery'),
+('Historical Weapons');
+
+-- Artifacts
+INSERT INTO Artifact
+(AccessionNo, CollectionUnitID, Title,
+ CollectionType, CurrentValue)
+VALUES
+('ART001', 1, 'Ancient Sculpture', 'Stone', 50000),
+('ART002', 2, 'Traditional Painting', 'Canvas', 30000),
+('ART003', 3, 'Ancient Coin', 'Metal', 10000),
+('ART004', 4, 'Old Manuscript', 'Paper', 20000);
+
+-- Loans
+INSERT INTO Loan
+(LenderPartyID, StartDate, DueDate, Status)
+VALUES
+(1, '2026-01-01', '2026-12-01', 'ACTIVE'),
+(2, '2026-02-01', '2026-11-01', 'ACTIVE'),
+(3, '2026-03-01', '2026-10-01', 'CLOSED');
+
+-- Loan objects
+INSERT INTO LoanObject
+(LoanID, ArtifactID, IntakeDate, LineValue)
+VALUES
+(1, 1, '2026-01-01', 50000),
+(1, 2, '2026-01-01', 30000),
+(2, 3, '2026-02-01', 10000),
+(3, 4, '2026-03-01', 20000);
+
+-- Condition reports
+INSERT INTO ConditionReport
+(LoanObjectID, ReportDateTime, ReportType,
+ ConditionGrade, Observations)
+VALUES
+(1, '2026-01-01 10:00:00',
+ 'INTAKE', 'Good', 'No visible damage'),
+
+(1, '2026-06-01 10:00:00',
+ 'DURING_LOAN', 'Good', 'Condition unchanged'),
+
+(2, '2026-01-01 11:00:00',
+ 'INTAKE', 'Excellent', 'No damage'),
+
+(3, '2026-02-01 09:00:00',
+ 'INTAKE', 'Fair', 'Minor scratches');
+
+-- Exhibition
+INSERT INTO Exhibition
+(ExhibitionName, StartDate, EndDate)
+VALUES
+('Indian Heritage Exhibition',
+ '2026-04-01', '2026-12-31');
+
+-- Display slots
+INSERT INTO DisplaySlot
+(ExhibitionID, SlotNo, Zone)
+VALUES
+(1, 1, 'East Wing'),
+(1, 2, 'West Wing'),
+(1, 3, 'Central Hall');
+
+-- Placements
+INSERT INTO Placement
+(LoanObjectID, ExhibitionID, SlotNo,
+ FromDate, ToDate)
+VALUES
+(1, 1, 1, '2026-04-01', NULL),
+(2, 1, 2, '2026-04-01', NULL);
+
+-- Artifact ownership
+INSERT INTO ArtifactOwner
+(ArtifactID, PartyID, ValidFrom,
+ ValidTo, SharePercent)
+VALUES
+(1, 1, '2025-01-01', NULL, 60),
+(1, 2, '2025-01-01', NULL, 40),
+(2, 2, '2025-01-01', NULL, 100),
+(3, 3, '2025-01-01', NULL, 100),
+(4, 1, '2025-01-01', NULL, 100);
+
+SELECT LoanID, LenderPartyID, DueDate
+FROM Loan
+WHERE ReturnDate IS NULL
+AND DueDate < CURRENT_DATE;
+
+SELECT
+    A.ArtifactID,
+    A.AccessionNo,
+    A.Title
+FROM Artifact A
+JOIN LoanObject LO
+    ON A.ArtifactID = LO.ArtifactID
+LEFT JOIN ConditionReport CR
+    ON LO.LoanObjectID = CR.LoanObjectID
+WHERE CR.ReportID IS NULL;
+
+SELECT
+    A.AccessionNo,
+    A.Title,
+    L.LoanID,
+    L.StartDate,
+    L.DueDate,
+    LO.ReturnDate
+FROM Artifact A
+JOIN LoanObject LO
+    ON A.ArtifactID = LO.ArtifactID
+JOIN Loan L
+    ON LO.LoanID = L.LoanID
+ORDER BY L.StartDate;
+
+SELECT
+    LO.LoanObjectID,
+    LO.LoanID,
+    LO.ArtifactID
+FROM LoanObject LO
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM ConditionReport CR
+    WHERE CR.LoanObjectID = LO.LoanObjectID
+    AND CR.ReportType = 'INTAKE'
+);
+
+SHOW TABLES;
+
+SELECT COUNT(*) FROM Party;
+SELECT COUNT(*) FROM Person;
+SELECT COUNT(*) FROM LenderRole;
+SELECT COUNT(*) FROM Artifact;
+SELECT COUNT(*) FROM Loan;
+SELECT COUNT(*) FROM LoanObject;
+SELECT COUNT(*) FROM ConditionReport;
+SELECT COUNT(*) FROM ArtifactOwner;
+
+-- Check query execution plan
+EXPLAIN ANALYZE
+SELECT *
+FROM Loan
+WHERE ReturnDate IS NULL
+AND DueDate < CURRENT_DATE;

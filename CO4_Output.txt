@@ -1,0 +1,62 @@
+CREATE DATABASE BankDB;
+USE BankDB;
+
+CREATE TABLE Transactions (
+    TxnID BIGINT PRIMARY KEY,
+    AccountNo VARCHAR(12),
+    TxnTime DATETIME,
+    Type VARCHAR(20),
+    Amount DECIMAL(12,2),
+    Branch VARCHAR(20),
+    Channel VARCHAR(10),
+    Narration VARCHAR(80),
+    Balance DECIMAL(12,2)
+);
+INSERT INTO Transactions VALUES
+(1001, 'ACC101', NOW(), 'Credit', 5000, 'Chennai', 'UPI', 'Salary', 15000),
+(1002, 'ACC102', NOW(), 'Debit', 1000, 'Trichy', 'ATM', 'Withdrawal', 9000),
+(1003, 'ACC103', NOW(), 'Credit', 3000, 'Chennai', 'UPI', 'Transfer', 12000),
+(1004, 'ACC101', NOW(), 'Debit', 500, 'Karur', 'Card', 'Shopping', 14500),
+(1005, 'ACC104', NOW(), 'Credit', 7000, 'Trichy', 'NEFT', 'Deposit', 17000);
+-- Primary index on TxnID is created automatically
+
+-- Secondary index on AccountNo
+CREATE INDEX idx_account
+ON Transactions(AccountNo);
+
+-- Secondary index on Branch
+CREATE INDEX idx_branch
+ON Transactions(Branch);
+
+-- Index for transaction time
+CREATE INDEX idx_time
+ON Transactions(TxnTime);
+-- Search by transaction ID
+SELECT * FROM Transactions
+WHERE TxnID = 1001;
+
+-- Search by account number
+SELECT * FROM Transactions
+WHERE AccountNo = 'ACC101';
+
+-- Search by branch
+SELECT * FROM Transactions
+WHERE Branch = 'Chennai';
+
+-- Search transaction ID range
+SELECT * FROM Transactions
+WHERE TxnID BETWEEN 1001 AND 1004;
+
+EXPLAIN
+SELECT * FROM Transactions
+WHERE AccountNo = 'ACC101';
+
+EXPLAIN
+SELECT * FROM Transactions
+WHERE TxnID BETWEEN 1001 AND 1004;
+SET profiling = 1;
+
+SELECT * FROM Transactions
+WHERE AccountNo = 'ACC101';
+
+SHOW PROFILES;

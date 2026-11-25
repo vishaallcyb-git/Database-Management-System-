@@ -1,0 +1,124 @@
+CREATE DATABASE ShopNest;
+USE ShopNest;
+
+CREATE TABLE Customer (
+    CustomerID INT PRIMARY KEY,
+    CustomerName VARCHAR(50),
+    Email VARCHAR(50)
+);
+
+CREATE TABLE Supplier (
+    SupplierID INT PRIMARY KEY,
+    SupplierName VARCHAR(50),
+    Phone VARCHAR(15)
+);
+
+CREATE TABLE Product (
+    ProductID INT PRIMARY KEY,
+    ProductName VARCHAR(50),
+    UnitPrice DECIMAL(10,2),
+    SupplierID INT,
+    FOREIGN KEY (SupplierID) REFERENCES Supplier(SupplierID)
+);
+
+CREATE TABLE Orders (
+    OrderID INT PRIMARY KEY,
+    CustomerID INT,
+    OrderDate DATE,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID)
+);
+
+CREATE TABLE OrderItem (
+    OrderID INT,
+    ProductID INT,
+    Quantity INT,
+    PricePaid DECIMAL(10,2),
+    PRIMARY KEY (OrderID, ProductID),
+    FOREIGN KEY (OrderID) REFERENCES Orders(OrderID),
+    FOREIGN KEY (ProductID) REFERENCES Product(ProductID)
+);
+CREATE TABLE ProductTag (
+    ProductID INT,
+    Tag VARCHAR(30),
+    PRIMARY KEY (ProductID, Tag)
+);
+
+CREATE TABLE ProductColour (
+    ProductID INT,
+    Colour VARCHAR(30),
+    PRIMARY KEY (ProductID, Colour)
+);
+
+INSERT INTO Customer VALUES
+(1, 'Arun', 'arun@gmail.com'),
+(2, 'Bala', 'bala@gmail.com');
+
+INSERT INTO Supplier VALUES
+(1, 'ABC Traders', '9876543210');
+
+INSERT INTO Product VALUES
+(101, 'Laptop', 50000, 1),
+(102, 'Mouse', 500, 1);
+
+INSERT INTO Orders VALUES
+(1001, 1, '2026-10-01'),
+(1002, 2, '2026-10-02');
+
+INSERT INTO OrderItem VALUES
+(1001, 101, 1, 48000),
+(1001, 102, 2, 450),
+(1002, 101, 1, 50000);
+
+INSERT INTO ProductTag VALUES
+(101, 'Electronics'),
+(101, 'Computer');
+
+INSERT INTO ProductColour VALUES
+(101, 'Black'),
+(101, 'Silver');
+-- Display all customers
+SELECT * FROM Customer;
+
+-- Display all products
+SELECT * FROM Product;
+
+-- Display customer orders
+SELECT * FROM Orders;
+
+-- Display products and suppliers
+SELECT ProductName, SupplierName
+FROM Product
+JOIN Supplier USING (SupplierID);
+
+-- Display order details
+SELECT OrderID, ProductID, Quantity, PricePaid
+FROM OrderItem;
+CREATE INDEX idx_customer
+ON Orders(CustomerID);
+
+CREATE VIEW OrderHistory AS
+SELECT O.OrderID, C.CustomerName, O.OrderDate
+FROM Orders O
+JOIN Customer C ON O.CustomerID = C.CustomerID;
+
+SELECT * FROM OrderHistory;
+
+SELECT OrderID, ProductID, PricePaid
+FROM OrderItem;
+
+UPDATE OrderItem
+SET PricePaid = 45000
+WHERE OrderID = 1001 AND ProductID = 101;
+
+SELECT * FROM OrderItem;
+-- Update supplier phone
+UPDATE Supplier
+SET Phone = '9999999999'
+WHERE SupplierID = 1;
+
+-- Check order count
+SELECT COUNT(*) FROM OrderItem;
+
+-- Check product prices
+SELECT * FROM Product
+WHERE UnitPrice > 0;
